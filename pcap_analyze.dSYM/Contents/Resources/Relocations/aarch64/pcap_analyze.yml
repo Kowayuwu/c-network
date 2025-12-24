@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/koway/Documents/GitHub/c-network/pcap_analyze'
+relocations:     []
+...
