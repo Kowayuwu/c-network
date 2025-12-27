@@ -2,7 +2,8 @@
 #include <stdint.h>
 
 // length is 24 octets
-typedef struct pcap_file_header{
+typedef struct pcap_file_header
+{
     uint32_t magic_number;
     uint16_t major_version;
     uint16_t minor_version;
@@ -14,7 +15,8 @@ typedef struct pcap_file_header{
 } pcap_file_header_t;
 
 // length is 16 octects
-typedef struct pcap_packet_header{
+typedef struct pcap_packet_header
+{
     uint32_t time_in_second;
     uint32_t time_in_detail; // microseconds | nanoseconds, we can find out by the file header's magic number
     uint32_t captured_data_length;
@@ -22,6 +24,6 @@ typedef struct pcap_packet_header{
 
 } pcap_packet_header_t;
 
-//TODO: struct that stores field name of the above structs?
+// TODO: struct that stores field name of the above structs? EDIT prob not? do swap endian in util instad for now
 
-//TODO: need TCP & IP structs as well
+// TODO: need TCP & IP structs as well
