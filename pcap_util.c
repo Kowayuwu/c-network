@@ -1,5 +1,4 @@
 #include "pcap_util.h"
-#include "network_package_struct.h"
 
 void reverse_byte_uint32(uint32_t *num)
 {
