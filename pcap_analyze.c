@@ -10,7 +10,7 @@ int main()
     FILE *file;
     char *file_path = "synflood.pcap";
 
-    file = fopen(file_path, "r");
+    file = fopen(file_path, "rb");
     if (file == NULL)
     {
         fprintf(stderr, "Failed to open file: %s", file_path);
@@ -62,14 +62,20 @@ int main()
     printf("pcap packet time_in_detail is in unit: %s\n", pcap_packet_time_in_microsec ? "Micro-second" : "Nano-second");
 
     int packet_count = 0;
+    const int PCAP_PACKET_HEADER_SIZE = 16;
     // start reading packets
     while (true)
     {
         pcap_packet_header_t pcap_p_hdr;
-        size_t read_amount = fread(&pcap_p_hdr, sizeof(pcap_p_hdr), 1, file);
-        if (read_amount == 0)
+        size_t read_amount = fread(&pcap_p_hdr, PCAP_PACKET_HEADER_SIZE, 1, file);
+
+        if (read_amount != 1)
         {
-            break;
+            if (feof(file))
+                break;
+            fprintf(stderr, "Error reading packet header\n");
+            fclose(file);
+            return 1;
         }
 
         packet_count += 1;
@@ -86,12 +92,11 @@ int main()
 
         if (pcap_p_hdr.captured_data_length != pcap_p_hdr.untruncated_data_length)
         {
-            printf("Found data truncated, stop reading packets"); // didn't happen in this file, decide not to handle it in this project
+            printf("Found data truncated, stop reading packets\n"); // didn't happen in this file, decide not to handle it in this project
             break;
         }
-
-        void *buffer;
-        fread(buffer, pcap_p_hdr.captured_data_length, 1, file);
+        // printf("%d\n", pcap_p_hdr.captured_data_length);
+        fseek(file, (long)pcap_p_hdr.captured_data_length, SEEK_CUR);
     }
     printf("%d amount of packets read", packet_count);
 
