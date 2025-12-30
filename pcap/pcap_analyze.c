@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-// for ntoh functions, I know I wrote my own byte swapping function but hey using this is cool as well
+// for importing ntoh functions, I know I wrote my own byte swapping function but hey using this is cool as well
 #ifdef _WIN32
 #include <winsock2.h>
 #else
@@ -13,7 +13,7 @@
 #include "pcap_util.h"
 
 /*
-Structure of this pcap file:
+Structure of the pcap file:
 
 pcap file header
  [
@@ -45,8 +45,8 @@ int main()
     bool pcap_header_need_swap_byte = false;
     bool pcap_packet_time_in_nanosec = false;
     bool pcap_packet_time_in_microsec = false;
-    // check if the endianess of pcap headers is the same between the host that reads and the one that wrote the file
-    // and also get the unit of the second time stamp in the pcap packet header
+    /* check if the endianess of pcap headers is the same between this host and the one that wrote the file,
+    additionly, get the unit of the detailed time stamp in the pcap packet header */
     switch (pcap_f_hdr.magic_number)
     {
     case 0xa1b2c3d4:
@@ -73,7 +73,7 @@ int main()
 
     if (pcap_header_need_swap_byte)
     {
-        // swap bytes of the fields in the file header, packet header's will be swapped when we go through each packet
+        // swap bytes of the fields in the pcap file header, swapping pcap packet headers will be done when we go through each packet
         pcap_file_header_swap_endian(&pcap_f_hdr);
     }
 
@@ -92,12 +92,13 @@ int main()
     const int IPV4_HEADER_MIN_SIZE = 20;
     const int TCP_HEADER_MIN_SIZE = 20;
 
-    // start reading packets till end of file
+    // read packets till end of file
     while (true)
     {
         pcap_packet_header_t pcap_p_hdr;
         size_t read_amount = fread(&pcap_p_hdr, PCAP_PACKET_HEADER_SIZE, 1, file);
 
+        // break if we reached end of file
         if (read_amount != 1)
         {
             if (feof(file))
@@ -121,7 +122,7 @@ int main()
 
         if (pcap_p_hdr.captured_data_length != pcap_p_hdr.untruncated_data_length)
         {
-            printf("Found data truncated, stop reading packets\n"); // didn't happen in this file, decide not to handle it in this project
+            printf("Found data truncated, stop reading packets\n"); // data truncate didn't happen in this file, decide not to handle it in this project
             break;
         }
         uint32_t remaining_packet_data_length = pcap_p_hdr.captured_data_length;
@@ -171,7 +172,7 @@ int main()
             break;
         }
 
-        // see if ipv4 options exists, if so then we need to read more, NOTE that in ipv4 the IHL unit is in 32 bits not byte
+        // see if ipv4 options exists, if so then we need to read more, NOTE that in ipv4 the IHL unit is in 32 bits, NOT 1 byte
         uint8_t ihl_in_bytes = (ipv4_header.version_and_IHL & 0x0f) << 2;
         uint8_t ipv4_options_length = ihl_in_bytes - IPV4_HEADER_MIN_SIZE;
 
@@ -213,7 +214,7 @@ int main()
         fread(&tcp_header, TCP_HEADER_MIN_SIZE, 1, file);
         remaining_packet_data_length -= TCP_HEADER_MIN_SIZE;
 
-        // see if TCP header options exists, if so then we need to read more, NOTE that in ipv4 the IHL unit is in 32 bits not byte
+        // see if TCP header options exists, if so then we need to read more, NOTE that the original unit is 32 bits
         uint8_t data_offset_in_bytes = (tcp_header.data_offset_reserved & 0xf0) >> 2; // shift right 4 then left 2
         uint8_t tcp_options_length = data_offset_in_bytes - TCP_HEADER_MIN_SIZE;
 
@@ -231,10 +232,12 @@ int main()
         bool SYN_flagged = (tcp_header.flags & 0x0002) != 0;
         bool ACK_flagged = (tcp_header.flags & 0x0010) != 0;
 
+        // count packets that initiated a SYN to us
         if (SYN_flagged && dst_port == 80)
         {
             SYN_initiated_count += 1;
         }
+        // count packets that we ACKed, the machine should not be able to ACK every SYN (It was a SYN flood attack)
         if (ACK_flagged && src_port == 80)
         {
             ACK_count += 1;
