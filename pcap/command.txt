@@ -1,0 +1,8 @@
+make file seems overcomplicated for this project?
+
+MAC
+clang ./pcap_analyze.c ./pcap_util.c -o pcap_analyze_mac.exe  
+
+
+WIN
+gcc pcap_analyze.c pcap_util.c -lws2_32 -o pcap_analyze_win.exe
