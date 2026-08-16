@@ -12,29 +12,29 @@ class HTTPMessageType(Enum):
     RESPONSE = auto()
 
 class HttpMessage(object):
-    def __init__(self, type: HTTPMessageType):
-        self.parser_state = HttpParserState.START
-        self.message_type = type
+    def __init__(self, message_type: HTTPMessageType):
+        self.parser_state: HttpParserState = HttpParserState.START
+        self.message_type: HTTPMessageType = message_type
         self.start_line: bytes = b''
         
         # For requests
-        self.method = b''
-        self.uri = b''
-        self.version = b''
+        self.method: bytes = b''
+        self.uri: bytes = b''
+        self.version: bytes = b''
 
         # For responses:
-        self.version = b''
-        self.status_code = b''
-        self.status_message = b''
+        self.version: bytes = b''
+        self.status_code: bytes = b''
+        self.status_message: bytes = b''
 
         self.headers: dict[bytes, bytes] = {}
-        self.body = b''
+        self.body: bytes = b''
 
         # To store last packet's data if fragmentation happened
         self.residual: bytes = b''
         
 
-    def parse(self, msg: bytes):
+    def parse(self, msg: bytes) -> None:
         '''
         Given the HTTP Message bytes, parse them while updating the state
         Inform whether we finished parsing by updating the state to HttpParserState.END
@@ -60,28 +60,30 @@ class HttpMessage(object):
                     self.version, self.status_code, self.status_message = start_line.rstrip().split(b' ', 2)
                     self.parser_state = HttpParserState.HEADERS
                 except:
-                    # Found out that if the request is like really really bad the response can start with <!DOCTYPE HTML>
+                    # Found out that if the request is like... really really bad, the response can start with <!DOCTYPE HTML>
                     self.parser_state = HttpParserState.BODY
 
 
         if self.parser_state == HttpParserState.HEADERS:
             while True:
                 header_new_line = bs.readline()
-                # print(f"header new line {header_new_line}")
                 
                 # NOTE: Packet Fragment could happen exactly at the end of line, leading to empty readline not CLRF
-                # Or, if there's just no header at all
+                # Or, also possible that there's just no header at all
                 if header_new_line == b'':
                     return
 
                 if not header_new_line.endswith(b'\n'):
                     self.residual = header_new_line
                     return
+
+                # Reset residual
                 self.residual == b''
 
-                # End of the header is just a CLRF, but to be resilient we should also check \n without \r
+                # End of header should be a CLRF line, but to be resilient we should also check \n without \r
                 if header_new_line == b'\r\n' or header_new_line == b'\n':
-                    # No need to read body for GET
+
+                    # NOTE: No need to read body for GET, body is discouraged for GET
                     if self.message_type == HTTPMessageType.REQUEST and self.method == b'GET':
                         self.parser_state = HttpParserState.END
                     else:
@@ -94,13 +96,13 @@ class HttpMessage(object):
                 value = value.strip()
                 self.headers[name] = value
 
-            #print(f"Finish read headers: {self.headers}")
 
+        # TODO: for persistence upstream connection, read body using Content-Length / Transfer-Encoding: Chunked ... etc
         if self.parser_state == HttpParserState.BODY:
             self.body += bs.read()
     
 
-    def add_header(self, key: str, value: str):
+    def add_header(self, key: str, value: str) -> None:
         '''
         Just adding whatever header you want, not doing any checks
         '''
@@ -113,14 +115,9 @@ class HttpMessage(object):
         Returns the full http message as bytes that can be send through sockets
         '''
         b_clrf: bytes = b'\r\n'
-        b_startline_separator: bytes = b' '
         b_header_field_separator: bytes = b':'
 
         # Reconstruct starting line
-        # if self.message_type == HTTPMessageType.REQUEST:
-        #     res: bytes = b_startline_separator.join([self.method, self.uri, self.version]) + b_clrf
-        # else:
-        #     res: bytes = b_startline_separator.join([self.version, self.status_code, self.status_message]) + b_clrf
         res = self.start_line
 
         # Then headers
@@ -147,6 +144,3 @@ class HttpMessage(object):
         
         if self.version == b'HTTP/1.1':
             return not (connection and connection.lower() == b'close')
-
-# test = b'asdf\r\n'
-# print(test.endswith(b'\r\n'))

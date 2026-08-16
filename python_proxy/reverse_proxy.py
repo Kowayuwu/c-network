@@ -36,7 +36,6 @@ import gzip
 import re
 
 
-
 DEBUG: bool = True
 REQUEST_CACHE: bool = True
 
@@ -83,7 +82,7 @@ def deal_with_client(client_socket: socket.socket) -> None:
     '''
 
     # Get the client request if there's a previous incomplete meesage, or else start a new HTTP Message
-    client_request = client_request_dict.get(client_socket, HttpMessage(type=HTTPMessageType.REQUEST))
+    client_request = client_request_dict.get(client_socket, HttpMessage(message_type=HTTPMessageType.REQUEST))
     client_request_dict[client_socket] = client_request
 
     # Read the stream, this should guarantee one successful recv()
@@ -139,7 +138,7 @@ def deal_with_client(client_socket: socket.socket) -> None:
 
 
     # Get repsonse back from server, may compress or cache it, and add to io_to_send waitlist
-    server_response = HttpMessage(type=HTTPMessageType.RESPONSE)
+    server_response = HttpMessage(message_type=HTTPMessageType.RESPONSE)
     while True:
         chunk = upstream_socket.recv(BUFFER)
         if not chunk:
@@ -209,7 +208,7 @@ def retrieve_cache(req: HttpMessage) -> Optional[HttpMessage]:
     key = req.uri
     prev_res, expire_time = cache.get(key, (None, None))
     if not prev_res:
-        # thinking of not cleaning the cache here, because the cache should get overwritten later -
+        # NOTE: thinking of not cleaning the cache here, because the cache should get overwritten later -
         # additionally, there might be some origins that doesn't care about stale data?
         if DEBUG: print("[[No Cache found]]")
         return None
@@ -285,4 +284,4 @@ if __name__ == '__main__':
                 send_response(fd)
 
         for fd in exceptional:
-            print(f"exceptional: {fd}")
+            if DEBUG: print(f"exceptional: {fd}")
